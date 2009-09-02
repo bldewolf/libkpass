@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include <openssl/evp.h>
+#include <byteswap.h>
 
 #include "kpass.h"
 
