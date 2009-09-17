@@ -20,6 +20,7 @@
 #include <string.h>
 #include <openssl/evp.h>
 #include <byteswap.h>
+#include <time.h>
 
 #include "kpass.h"
 
@@ -930,6 +931,37 @@ static int kpass_entry_packed_len(const kpass_entry *e) {
 
 kpass_retval kpass_verify_entry(const kpass_entry *entry) {
 	return kpass_verification_fail;
+}
+
+/* The time array is packed like this:
+ *
+ * time:  0           1            2           3            4
+ *    765432 10   765432 10   76 54321 0   7654 3210   76 543210
+ *          |           |       |     |        |         |      |
+ *          +----year---+-month-+-day-+--hour--+--minute-+second+ 
+ */
+void kpass_unpack_time(const uint8_t time[5], struct tm *tms) {
+	tms->tm_sec  = time[4] & 0x3f;
+	tms->tm_min  = ((time[3] & 0x0f) << 2) | (time[4] >> 6);
+	tms->tm_hour = ((time[2] & 0x01) << 4) | (time[3] >> 4);
+	tms->tm_mday = (time[2] >> 1) & 0x1f;
+	tms->tm_mon  = ((time[1] & 0x03) << 2) | (time[2] >> 6);
+	tms->tm_year = (time[0] << 6) | (time[1] >> 2);
+	tms->tm_year -= 1900; /* tm struct stores year as offset from 1900 */
+
+	tms->tm_wday = 0;
+	tms->tm_yday = 0;
+	tms->tm_isdst = -1;
+}
+
+void kpass_pack_time(const struct tm *tms, uint8_t time[5]) {
+	int year = tms->tm_year + 1900; /* tm struct stores year as offset from 1900 */
+
+	time[4] = (tms->tm_sec & 0x3f) | (tms->tm_min << 6);
+	time[3] = ((tms->tm_min >> 2) & 0x0f) | (tms->tm_hour << 4);
+	time[2] = ((tms->tm_hour >> 4) & 0x01) | ((tms->tm_mday & 0x1f) << 1) | (tms->tm_mon << 6);
+	time[1] = ((tms->tm_mon >> 2) & 0x03) | (year << 2);
+	time[0] = (year >> 6) & 0x03;
 }
 
 void kpass_free_db(kpass_db *db) {

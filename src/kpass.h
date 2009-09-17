@@ -21,6 +21,7 @@
 #define __KPASS_H__
 
 #include <stdint.h>
+#include <time.h>
 
 /*
  *
@@ -233,6 +234,25 @@ int		kpass_db_encrypted_len(const kpass_db *db);
 
 /* UNIMPLEMENTED */
 kpass_retval	kpass_insert_group(kpass_db *db, kpass_group *group);
+
+/*
+ * packed time functions */
+
+/* kpass_unpack_time - Unpack the 5 byte packed time format into struct tm tms
+ * time: 5 byte array from which to unpack the time
+ * tms: tm structure in which to place the time
+ *
+ * Note that 2999-13-28 23:59:59 is considered to be "Never" for expiration time.
+ */
+void kpass_unpack_time(const uint8_t time[5], struct tm *tms);
+
+/* kpass_pack_time - Pack the struct tm tms into the 5 byte packed format
+ * tms: tm structure from which to get the time
+ * time: 5 byte array in which to pack the time
+ *
+ * Note that 2999-13-28 23:59:59 is considered to be "Never" for expiration time.
+ */
+void kpass_pack_time(const struct tm *tms, uint8_t time[5]);
 
 /* These functions free the internal structures of the kpass database.  Use
  * kpass_free_db before freeing the struct or initing a new database */
