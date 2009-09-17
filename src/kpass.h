@@ -242,7 +242,7 @@ kpass_retval	kpass_insert_group(kpass_db *db, kpass_group *group);
  * time: 5 byte array from which to unpack the time
  * tms: tm structure in which to place the time
  *
- * Note that 2999-13-28 23:59:59 is considered to be "Never" for expiration time.
+ * Note that 2999-12-28 23:59:59 is considered to be "Never" for expiration time.
  */
 void kpass_unpack_time(const uint8_t time[5], struct tm *tms);
 
@@ -250,7 +250,7 @@ void kpass_unpack_time(const uint8_t time[5], struct tm *tms);
  * tms: tm structure from which to get the time
  * time: 5 byte array in which to pack the time
  *
- * Note that 2999-13-28 23:59:59 is considered to be "Never" for expiration time.
+ * Note that 2999-12-28 23:59:59 is considered to be "Never" for expiration time.
  */
 void kpass_pack_time(const struct tm *tms, uint8_t time[5]);
 

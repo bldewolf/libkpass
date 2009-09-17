@@ -946,6 +946,7 @@ void kpass_unpack_time(const uint8_t time[5], struct tm *tms) {
 	tms->tm_hour = ((time[2] & 0x01) << 4) | (time[3] >> 4);
 	tms->tm_mday = (time[2] >> 1) & 0x1f;
 	tms->tm_mon  = ((time[1] & 0x03) << 2) | (time[2] >> 6);
+	tms->tm_mon--; /* tm struct stores month zero indexed */
 	tms->tm_year = (time[0] << 6) | (time[1] >> 2);
 	tms->tm_year -= 1900; /* tm struct stores year as offset from 1900 */
 
@@ -956,11 +957,12 @@ void kpass_unpack_time(const uint8_t time[5], struct tm *tms) {
 
 void kpass_pack_time(const struct tm *tms, uint8_t time[5]) {
 	int year = tms->tm_year + 1900; /* tm struct stores year as offset from 1900 */
+	int month = tms->tm_mon + 1;    /* tm struct stores month zero indexed */
 
 	time[4] = (tms->tm_sec & 0x3f) | (tms->tm_min << 6);
 	time[3] = ((tms->tm_min >> 2) & 0x0f) | (tms->tm_hour << 4);
-	time[2] = ((tms->tm_hour >> 4) & 0x01) | ((tms->tm_mday & 0x1f) << 1) | (tms->tm_mon << 6);
-	time[1] = ((tms->tm_mon >> 2) & 0x03) | (year << 2);
+	time[2] = ((tms->tm_hour >> 4) & 0x01) | ((tms->tm_mday & 0x1f) << 1) | (month << 6);
+	time[1] = ((month >> 2) & 0x03) | (year << 2);
 	time[0] = (year >> 6) & 0x03;
 }
 
