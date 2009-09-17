@@ -935,10 +935,10 @@ kpass_retval kpass_verify_entry(const kpass_entry *entry) {
 
 /* The time array is packed like this:
  *
- * time:  0           1            2           3            4
- *    765432 10   765432 10   76 54321 0   7654 3210   76 543210
- *          |           |       |     |        |         |      |
- *          +----year---+-month-+-day-+--hour--+--minute-+second+ 
+ * time:   0          1            2           3            4
+ *    76 543210   765432 10   76 54321 0   7654 3210   76 543210
+ *      |               |       |     |        |         |      |
+ *      +------year-----+-month-+-day-+--hour--+--minute-+second+ 
  */
 void kpass_unpack_time(const uint8_t time[5], struct tm *tms) {
 	tms->tm_sec  = time[4] & 0x3f;
@@ -947,6 +947,9 @@ void kpass_unpack_time(const uint8_t time[5], struct tm *tms) {
 	tms->tm_mday = (time[2] >> 1) & 0x1f;
 	tms->tm_mon  = ((time[1] & 0x03) << 2) | (time[2] >> 6);
 	tms->tm_mon--; /* tm struct stores month zero indexed */
+
+	/* This is happening in an int (more than 8 bits), so the bits
+	 * shifted off the left are preserved. */
 	tms->tm_year = (time[0] << 6) | (time[1] >> 2);
 	tms->tm_year -= 1900; /* tm struct stores year as offset from 1900 */
 
@@ -963,7 +966,7 @@ void kpass_pack_time(const struct tm *tms, uint8_t time[5]) {
 	time[3] = ((tms->tm_min >> 2) & 0x0f) | (tms->tm_hour << 4);
 	time[2] = ((tms->tm_hour >> 4) & 0x01) | ((tms->tm_mday & 0x1f) << 1) | (month << 6);
 	time[1] = ((month >> 2) & 0x03) | (year << 2);
-	time[0] = (year >> 6) & 0x03;
+	time[0] = (year >> 6) & 0x3f;
 }
 
 void kpass_free_db(kpass_db *db) {
