@@ -1,3 +1,13 @@
+libkpass releases:
+
+Version 2 - 20090926
+Fixed build issues on PPC.
+Added decoding/encoding of dates.
+
+Version 1 - 20090821
+Initial release.  Yay!
+
+Pre-release poem (for posterity):
 Changes will come,
 And changes will go,
 But until a real release,
