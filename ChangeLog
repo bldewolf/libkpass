@@ -1,5 +1,9 @@
 libkpass releases:
 
+Version 3 - 20100218
+Fixed build issues regarding libssl/libcrypto and "-Wl,--as-needed" LDFLAGS.
+Libtool upgrade.  "make" was failing quite spectacularly until I did so.
+
 Version 2 - 20090926
 Fixed build issues on PPC.
 Added decoding/encoding of dates.

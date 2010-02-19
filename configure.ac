@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT(libkpass, 2, libkpass@bldewolf.com)
+AC_INIT(libkpass, 3, libkpass@bldewolf.com)
 AC_CONFIG_SRCDIR([src/kpass.c])
 AC_CONFIG_HEADER([src/config.h])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -19,7 +19,7 @@ AC_PROG_LIBTOOL
 AC_PROG_CC
 
 # Checks for libraries.
-AC_CHECK_LIB([ssl], [EVP_MD_CTX_init], [], [echo "Sorry, you need openssl."; exit 1])
+AC_CHECK_LIB([crypto], [EVP_MD_CTX_init], [], [AS_ECHO "Sorry, you need OpenSSL."; exit 1])
 
 # Maybe once rlkpass is finished
 #AC_CHECK_LIB([readline], [rl_get_screen_size], [
