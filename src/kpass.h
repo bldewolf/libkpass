@@ -44,6 +44,7 @@ enum kpass_retval {
 	kpass_decrypt_data_fail,
 	kpass_decrypt_db_fail,
 	kpass_hash_pw_fail,
+	kpass_hash_pw_keyfile_fail,
 	kpass_prepare_key_fail,
 	kpass_load_decrypted_data_entry_fail,
 	kpass_load_decrypted_data_group_fail,
@@ -55,7 +56,7 @@ enum kpass_retval {
 	kpass_unsupported_flag,
 	kpass_not_implemented,
 };
-#define kpass_retval_len 14
+#define kpass_retval_len 15
 
 extern char *kpass_error_str_en_US[];
 extern char **kpass_error_str;
@@ -182,7 +183,7 @@ kpass_retval	kpass_init_db(kpass_db *db, const uint8_t *data, const int len);
  * shared crypto functions */
 
 /* kpass_hash_pw - Generate hash (for crypting) from a string.
- * db: kpass_db that has been loaded
+ * db: backwards compatible argument, can be NULL
  * pw: string to be hashed
  * pw_hash: 32-byte pre-allocated location for the hash to be returned in
  *
@@ -194,6 +195,20 @@ kpass_retval	kpass_init_db(kpass_db *db, const uint8_t *data, const int len);
  */
 kpass_retval	kpass_hash_pw(const kpass_db *db, const char *pw, uint8_t *pw_hash);
 
+/* kpass_hash_pw_keyfile - Generate hash from a string and keyfile.
+ * db: backwards compatible argument, can be NULL
+ * pw: string to be hashed
+ * data: Key file
+ * len: length of data
+ * pw_hash: 32-byte pre-allocated location for the hash to be returned in
+ *
+ * Use this function to hash the password and keyfile for use with encryption
+ * and decryption.   However, it only performs the first step as to provide an
+ * alternative to storing the plaintext password while maintaining the ability
+ * to produce a database key with different parameters (seeds, key rounds, init
+ * vectors).
+ */
+kpass_retval	kpass_hash_pw_keyfile(const kpass_db *db, const char *pw, const uint8_t *data, const int len, uint8_t *pw_hash);
 
 /*
  * encrypted->decrypted functions */

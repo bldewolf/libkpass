@@ -41,6 +41,7 @@ char *kpass_error_str_en_US[kpass_retval_len] = {
 	"Data decryption failed",
 	"Database decryption failed",
 	"Password hashing failed",
+	"Password hashing with keyfile failed",
 	"Key preparation failed",
 	"Loading data of an entry failed",
 	"Loading data of a group failed",
@@ -257,6 +258,49 @@ kpass_hash_pw_fail:
 	if(retval == kpass_success) retval = kpass_hash_pw_fail;
 
 kpass_hash_pw_success:
+	EVP_MD_CTX_cleanup(&sha_ctx);
+	return retval;
+}
+
+kpass_retval kpass_hash_pw_keyfile(const kpass_db *db, const char *pw, const uint8_t *data, const int len, uint8_t *pw_hash) {
+	EVP_MD_CTX sha_ctx;
+	kpass_retval retval = kpass_success;
+	uint8_t keyfile_hash[32], justpw_hash[32];
+	
+	EVP_MD_CTX_init(&sha_ctx);
+
+	retval = kpass_hash_pw(db, pw, justpw_hash);
+	if(retval)
+		goto kpass_hash_pw_keyfile_fail;
+
+	/* First, SHA256 the password.  This has been pulled out so it can be
+	 * done separately so the calling program can hold onto the hash for
+	 * encryption rather than the plain text which is gross!!! */
+	if(!EVP_DigestInit_ex(&sha_ctx, EVP_sha256(), NULL))
+		goto kpass_hash_pw_keyfile_fail;
+	if(!EVP_DigestUpdate(&sha_ctx, data, len))
+		goto kpass_hash_pw_keyfile_fail;
+	if(!EVP_DigestFinal_ex(&sha_ctx, keyfile_hash, NULL))
+		goto kpass_hash_pw_keyfile_fail;
+
+	EVP_MD_CTX_cleanup(&sha_ctx);
+	EVP_MD_CTX_init(&sha_ctx);
+
+	if(!EVP_DigestInit_ex(&sha_ctx, EVP_sha256(), NULL))
+		goto kpass_hash_pw_keyfile_fail;
+	if(!EVP_DigestUpdate(&sha_ctx, justpw_hash, sizeof(justpw_hash)))
+		goto kpass_hash_pw_keyfile_fail;
+	if(!EVP_DigestUpdate(&sha_ctx, keyfile_hash, sizeof(keyfile_hash)))
+		goto kpass_hash_pw_keyfile_fail;
+	if(!EVP_DigestFinal_ex(&sha_ctx, pw_hash, NULL))
+		goto kpass_hash_pw_keyfile_fail;
+
+	goto kpass_hash_pw_keyfile_success;
+
+kpass_hash_pw_keyfile_fail:
+	if(retval == kpass_success) retval = kpass_hash_pw_keyfile_fail;
+
+kpass_hash_pw_keyfile_success:
 	EVP_MD_CTX_cleanup(&sha_ctx);
 	return retval;
 }
