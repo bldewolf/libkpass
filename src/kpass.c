@@ -16,9 +16,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
+ #include <stdlib.h>
 #include <string.h>
-#include <openssl/evp.h>
+#include <nettle/aes.h>
+#include <nettle/sha.h>
+#include <nettle/cbc.h>
 #include <byteswap.h>
 #include <time.h>
 
@@ -40,9 +42,6 @@ char *kpass_error_str_en_US[kpass_retval_len] = {
 	"Operation successful",
 	"Data decryption failed",
 	"Database decryption failed",
-	"Password hashing failed",
-	"Password hashing with keyfile failed",
-	"Key preparation failed",
 	"Loading data of an entry failed",
 	"Loading data of a group failed",
 	"Initializing database failed",
@@ -125,14 +124,14 @@ int kpass_entry_fixed_len = 16 + 4 + 4 + 5 + 5 + 5 + 5;
 
 /* kpass_prepare_key - Internal function for the extra steps of producing the
  * database key.  */
-static kpass_retval	kpass_prepare_key(const kpass_db *db, uint8_t *pw_hash);
+static void		kpass_prepare_key(const kpass_db *db, uint8_t *pw_hash);
 
 /* decrypting helpers */
 static kpass_retval	kpass_decrypt_data(kpass_db *db, const uint8_t *pw_hash, uint8_t * data, int * data_len);
 static kpass_retval	kpass_load_decrypted_data(kpass_db *db, const uint8_t *data, const int data_len);
 
 /* encrypting helpers */
-static kpass_retval	kpass_encrypt_data(kpass_db *db, const uint8_t *pw_hash, uint8_t * data, int pack_len);
+static kpass_retval	kpass_encrypt_data(kpass_db *db, const uint8_t *pw_hash, uint8_t * data, int len, int pack_len);
 static kpass_retval	kpass_pack_db(const kpass_db *db, uint8_t *buff, int len);
 static void		kpass_write_header(const kpass_db *db, uint8_t * buf);
 static int		kpass_db_packed_len(const kpass_db *db);
@@ -152,51 +151,30 @@ static uint16_t	kpass_htols(uint16_t x);
  */
 
 static kpass_retval kpass_decrypt_data(kpass_db *db, const uint8_t *pw_hash, uint8_t * data, int * data_len) {
-	EVP_MD_CTX sha_ctx;
-	EVP_CIPHER_CTX aes_ctx;
+	struct CBC_CTX(struct aes_ctx, AES_BLOCK_SIZE) aes_ctx;
+	struct sha256_ctx sha256_ctx;
 	uint8_t hash[32];
-	int outl, leftover, decrypted_data_len;
 	kpass_retval retval = kpass_success;
 
 	if(db->flags != (kpass_flag_RIJNDAEL | kpass_flag_SHA2))
 		return kpass_unsupported_flag;
-		
-	EVP_CIPHER_CTX_init(&aes_ctx);
-	EVP_MD_CTX_init(&sha_ctx);
 
 	memcpy(hash, pw_hash, 32);
-	retval = kpass_prepare_key(db, hash);
-	if(retval)
-		goto kpass_decrypt_data_fail;
+	kpass_prepare_key(db, hash);
 
-	outl = *data_len;
+	aes_set_decrypt_key(&aes_ctx.ctx, AES_KEY_SIZE, hash);
+	CBC_SET_IV(&aes_ctx, db->encryption_init_vector);
+	CBC_DECRYPT(&aes_ctx, aes_decrypt, *data_len, data, data);
 
-	/* Begin AES decryption of data */
-	if(!EVP_DecryptInit_ex(&aes_ctx, EVP_aes_256_cbc(), NULL, hash, db->encryption_init_vector))
-		goto kpass_decrypt_data_fail;
-	if(!EVP_DecryptUpdate(&aes_ctx, data, &outl, data, *data_len))
-		goto kpass_decrypt_data_fail;
-	
-	/* Calculate leftover bytes and call Final pointing where it left off
-	 * with the leftover byte count */
-	leftover = *data_len - outl;
-	if(!EVP_DecryptFinal_ex(&aes_ctx, data + outl, &leftover))
-		goto kpass_decrypt_data_fail;
+	/* Really hokey PKCS7 padding */
+	*data_len = *data_len - data[*data_len - 1];
 
-	decrypted_data_len = outl + leftover;
-
-	/* Let's verify we decrypted successfully */
-	if(!EVP_DigestInit_ex(&sha_ctx, EVP_sha256(), NULL))
-		goto kpass_decrypt_data_fail;
-	if(!EVP_DigestUpdate(&sha_ctx, data, decrypted_data_len))
-		goto kpass_decrypt_data_fail;
-	if(!EVP_DigestFinal_ex(&sha_ctx, hash, NULL))
-		goto kpass_decrypt_data_fail;
+	sha256_init(&sha256_ctx);
+	sha256_update(&sha256_ctx, *data_len, data);
+	sha256_digest(&sha256_ctx, SHA256_DIGEST_SIZE, hash);
 
 	if(memcmp(hash, db->contents_hash, 32))
 		goto kpass_decrypt_data_fail;
-
-	*data_len = decrypted_data_len;
 
 	goto kpass_decrypt_data_success;
 
@@ -204,8 +182,6 @@ kpass_decrypt_data_fail:
 	if(retval == kpass_success) retval = kpass_decrypt_data_fail;
 
 kpass_decrypt_data_success:
-	EVP_CIPHER_CTX_cleanup(&aes_ctx);
-	EVP_MD_CTX_cleanup(&sha_ctx);
 	return retval;
 }
 
@@ -236,130 +212,57 @@ kpass_decrypt_db_success:
 	return retval;
 }
 
-kpass_retval kpass_hash_pw(const kpass_db *db, const char *pw, uint8_t *pw_hash) {
-	EVP_MD_CTX sha_ctx;
-	kpass_retval retval = kpass_success;
+void kpass_hash_pw(const kpass_db *db, const char *pw, uint8_t *pw_hash) {
+	struct sha256_ctx sha256_ctx;
 	
-	EVP_MD_CTX_init(&sha_ctx);
-
 	/* First, SHA256 the password.  This has been pulled out so it can be
 	 * done separately so the calling program can hold onto the hash for
 	 * encryption rather than the plain text which is gross!!! */
-	if(!EVP_DigestInit_ex(&sha_ctx, EVP_sha256(), NULL))
-		goto kpass_hash_pw_fail;
-	if(!EVP_DigestUpdate(&sha_ctx, pw, strlen(pw)))
-		goto kpass_hash_pw_fail;
-	if(!EVP_DigestFinal_ex(&sha_ctx, pw_hash, NULL))
-		goto kpass_hash_pw_fail;
-
-	goto kpass_hash_pw_success;
-
-kpass_hash_pw_fail:
-	if(retval == kpass_success) retval = kpass_hash_pw_fail;
-
-kpass_hash_pw_success:
-	EVP_MD_CTX_cleanup(&sha_ctx);
-	return retval;
+	sha256_init(&sha256_ctx);
+	sha256_update(&sha256_ctx, strlen(pw), (uint8_t*) pw);
+	sha256_digest(&sha256_ctx, SHA256_DIGEST_SIZE, pw_hash);
 }
 
-kpass_retval kpass_hash_pw_keyfile(const kpass_db *db, const char *pw, const uint8_t *data, const int len, uint8_t *pw_hash) {
-	EVP_MD_CTX sha_ctx;
-	kpass_retval retval = kpass_success;
+void kpass_hash_pw_keyfile(const kpass_db *db, const char *pw, const uint8_t *data, const int len, uint8_t *pw_hash) {
+	struct sha256_ctx sha256_ctx;
 	uint8_t keyfile_hash[32], justpw_hash[32];
-	
-	EVP_MD_CTX_init(&sha_ctx);
 
-	retval = kpass_hash_pw(db, pw, justpw_hash);
-	if(retval)
-		goto kpass_hash_pw_keyfile_fail;
+	/* Hash the password */
+	kpass_hash_pw(db, pw, justpw_hash);
 
-	/* First, SHA256 the password.  This has been pulled out so it can be
-	 * done separately so the calling program can hold onto the hash for
-	 * encryption rather than the plain text which is gross!!! */
-	if(!EVP_DigestInit_ex(&sha_ctx, EVP_sha256(), NULL))
-		goto kpass_hash_pw_keyfile_fail;
-	if(!EVP_DigestUpdate(&sha_ctx, data, len))
-		goto kpass_hash_pw_keyfile_fail;
-	if(!EVP_DigestFinal_ex(&sha_ctx, keyfile_hash, NULL))
-		goto kpass_hash_pw_keyfile_fail;
+	/* Hash the file contents */
+	sha256_init(&sha256_ctx);
+	sha256_update(&sha256_ctx, len, data);
+	sha256_digest(&sha256_ctx, SHA256_DIGEST_SIZE, keyfile_hash);
 
-	EVP_MD_CTX_cleanup(&sha_ctx);
-	EVP_MD_CTX_init(&sha_ctx);
-
-	if(!EVP_DigestInit_ex(&sha_ctx, EVP_sha256(), NULL))
-		goto kpass_hash_pw_keyfile_fail;
-	if(!EVP_DigestUpdate(&sha_ctx, justpw_hash, sizeof(justpw_hash)))
-		goto kpass_hash_pw_keyfile_fail;
-	if(!EVP_DigestUpdate(&sha_ctx, keyfile_hash, sizeof(keyfile_hash)))
-		goto kpass_hash_pw_keyfile_fail;
-	if(!EVP_DigestFinal_ex(&sha_ctx, pw_hash, NULL))
-		goto kpass_hash_pw_keyfile_fail;
-
-	goto kpass_hash_pw_keyfile_success;
-
-kpass_hash_pw_keyfile_fail:
-	if(retval == kpass_success) retval = kpass_hash_pw_keyfile_fail;
-
-kpass_hash_pw_keyfile_success:
-	EVP_MD_CTX_cleanup(&sha_ctx);
-	return retval;
+	/* Now hash password+file hash */
+	sha256_update(&sha256_ctx, SHA256_DIGEST_SIZE, justpw_hash);
+	sha256_update(&sha256_ctx, SHA256_DIGEST_SIZE, keyfile_hash);
+	sha256_digest(&sha256_ctx, SHA256_DIGEST_SIZE, pw_hash);
 }
 
 
-static kpass_retval kpass_prepare_key(const kpass_db *db, uint8_t *pw_hash) {
-	EVP_MD_CTX sha_ctx;
-	EVP_CIPHER_CTX aes_ctx;
-	int x, outl = 32;
-	kpass_retval retval = kpass_success;
-
-	EVP_MD_CTX_init(&sha_ctx);
-	EVP_CIPHER_CTX_init(&aes_ctx);
+static void kpass_prepare_key(const kpass_db *db, uint8_t *pw_hash) {
+	struct sha256_ctx sha256_ctx;
+	struct aes_ctx aes_ctx;
+	int x;
 
 	/* Now we hammer it with AES a specified ridiculous number of times */
-	if(!EVP_EncryptInit_ex(&aes_ctx, EVP_aes_256_ecb(), NULL, db->master_seed_extra, NULL))
-		goto kpass_prepare_key_fail;
-	/* disable padding so it doesn't try to write one final block */
-	if(!EVP_CIPHER_CTX_set_padding(&aes_ctx, 0))
-		goto kpass_prepare_key_fail;
+	aes_set_encrypt_key(&aes_ctx, AES_KEY_SIZE, db->master_seed_extra);
 
 	for(x = 0; x < db->key_rounds; x++) {
-		outl = 32;
-		if(!EVP_EncryptUpdate(&aes_ctx, pw_hash, &outl, pw_hash, 32) || outl != 32)
-			goto kpass_prepare_key_fail;
+		aes_encrypt(&aes_ctx, SHA256_DIGEST_SIZE, pw_hash, pw_hash);
 	}
 
-	if(!EVP_EncryptFinal_ex(&aes_ctx, pw_hash, &outl) || outl != 0)
-		goto kpass_prepare_key_fail;
-
-
 	/* Now we SHA256 the result from the AES hammering */
-	if(!EVP_DigestInit_ex(&sha_ctx, EVP_sha256(), NULL))
-		goto kpass_prepare_key_fail;
-	if(!EVP_DigestUpdate(&sha_ctx, pw_hash, 32))
-		goto kpass_prepare_key_fail;
-	if(!EVP_DigestFinal_ex(&sha_ctx, pw_hash, NULL))
-		goto kpass_prepare_key_fail;
+	sha256_init(&sha256_ctx);
+	sha256_update(&sha256_ctx, SHA256_DIGEST_SIZE, pw_hash);
+	sha256_digest(&sha256_ctx, SHA256_DIGEST_SIZE, pw_hash);
 
 	/* Now we SHA256 that result with the salt */
-	if(!EVP_DigestInit_ex(&sha_ctx, EVP_sha256(), NULL))
-		goto kpass_prepare_key_fail;
-	if(!EVP_DigestUpdate(&sha_ctx, db->master_seed, 16))
-		goto kpass_prepare_key_fail;
-	if(!EVP_DigestUpdate(&sha_ctx, pw_hash, 32))
-		goto kpass_prepare_key_fail;
-	if(!EVP_DigestFinal_ex(&sha_ctx, pw_hash, NULL))
-		goto kpass_prepare_key_fail;
-	
-	/* Now pw_hash should be the final key and we can exit */
-	goto kpass_prepare_key_success;
-
-kpass_prepare_key_fail:
-	if(retval == kpass_success) retval = kpass_prepare_key_fail;
-
-kpass_prepare_key_success:
-	EVP_CIPHER_CTX_cleanup(&aes_ctx);
-	EVP_MD_CTX_cleanup(&sha_ctx);
-	return retval;
+	sha256_update(&sha256_ctx, 16, db->master_seed);
+	sha256_update(&sha256_ctx, SHA256_DIGEST_SIZE, pw_hash);
+	sha256_digest(&sha256_ctx, SHA256_DIGEST_SIZE, pw_hash);
 }
 
 
@@ -644,57 +547,37 @@ static void kpass_write_header(const kpass_db *db, uint8_t * buf) {
 	buf += 4;
 }
 
-static kpass_retval kpass_encrypt_data(kpass_db *db, const uint8_t *pw_hash, uint8_t * data, int pack_len) {
-	EVP_MD_CTX sha_ctx;
-	EVP_CIPHER_CTX aes_ctx;
+static kpass_retval kpass_encrypt_data(kpass_db *db, const uint8_t *pw_hash, uint8_t * data, int len, int pack_len) {
+	struct CBC_CTX(struct aes_ctx, AES_BLOCK_SIZE) aes_ctx;
+	struct sha256_ctx sha256_ctx;
 	uint8_t hash[32];
-	int outl, leftover;
-	kpass_retval retval = kpass_success;
+	int x;
 
 	if(db->flags != (kpass_flag_RIJNDAEL | kpass_flag_SHA2))
 		return kpass_unsupported_flag;
 		
-	EVP_CIPHER_CTX_init(&aes_ctx);
-	EVP_MD_CTX_init(&sha_ctx);
-
 	/* Let's calculate the new contents_hash value */
-	if(!EVP_DigestInit_ex(&sha_ctx, EVP_sha256(), NULL))
-		goto kpass_encrypt_data_fail;
-	if(!EVP_DigestUpdate(&sha_ctx, data, pack_len))
-		goto kpass_encrypt_data_fail;
-	if(!EVP_DigestFinal_ex(&sha_ctx, hash, NULL))
-		goto kpass_encrypt_data_fail;
+	sha256_init(&sha256_ctx);
+	sha256_update(&sha256_ctx, pack_len, data);
+	sha256_digest(&sha256_ctx, SHA256_DIGEST_SIZE, hash);
 
 	memcpy(db->contents_hash, hash, 32);
 
 	/* Now make the key for the encryption */
 	memcpy(hash, pw_hash, 32);
-	if((retval = kpass_prepare_key(db, hash)))
-		goto kpass_encrypt_data_fail;
+	kpass_prepare_key(db, hash);
 
-	outl = pack_len;
+	/* Do some hokey PKCS7 padding */
+	for(x = pack_len; x < len; x++) {
+		data[x] = len - pack_len;
+	}
 
 	/* Begin AES encryption of data */
-	if(!EVP_EncryptInit_ex(&aes_ctx, EVP_aes_256_cbc(), NULL, hash, db->encryption_init_vector))
-		goto kpass_encrypt_data_fail;
-	if(!EVP_EncryptUpdate(&aes_ctx, data, &outl, data, pack_len))
-		goto kpass_encrypt_data_fail;
+	aes_set_encrypt_key(&aes_ctx.ctx, AES_KEY_SIZE, hash);
+	CBC_SET_IV(&aes_ctx, db->encryption_init_vector);
+	CBC_ENCRYPT(&aes_ctx, aes_encrypt, len, data, data);
 
-	/* Calculate leftover bytes and call Final pointing where it left off
-	 * with the leftover byte count */
-	leftover = pack_len - outl;
-	if(!EVP_EncryptFinal_ex(&aes_ctx, data + outl, &leftover))
-		goto kpass_encrypt_data_fail;
-	
-	goto kpass_encrypt_data_success;
-
-kpass_encrypt_data_fail:
-	if(retval == kpass_success) retval = kpass_encrypt_data_fail;
-
-kpass_encrypt_data_success:
-	EVP_CIPHER_CTX_cleanup(&aes_ctx);
-	EVP_MD_CTX_cleanup(&sha_ctx);
-	return retval;
+	return kpass_success;
 }
 
 kpass_retval kpass_encrypt_db(kpass_db *db, const uint8_t *pw_hash, uint8_t * buf) {
@@ -707,11 +590,11 @@ kpass_retval kpass_encrypt_db(kpass_db *db, const uint8_t *pw_hash, uint8_t * bu
 	/* round up to block size of 16 bytes */
 	sum = (len + 16) & (-1 ^ 15);
 
-	retval = kpass_pack_db(db, buf + kpass_header_len, sum);
+	retval = kpass_pack_db(db, buf + kpass_header_len, len);
 	if(retval)
 		goto kpass_encrypt_db_fail;
 
-	retval = kpass_encrypt_data(db, pw_hash, buf + kpass_header_len, len);
+	retval = kpass_encrypt_data(db, pw_hash, buf + kpass_header_len, sum, len);
 	if(retval)
 		goto kpass_encrypt_db_fail;
 

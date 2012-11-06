@@ -3,6 +3,7 @@ TESTS=test1
 check_PROGRAMS = test1 test2 test3
 lib_LTLIBRARIES = libkpass.la
 libkpass_la_SOURCES = src/kpass.c
+libkpass_la_LDFLAGS = -version-info 1:0:0
 include_HEADERS = src/kpass.h
 test1_SOURCES  = src/test1.c
 test1_LDADD = libkpass.la

@@ -12268,13 +12268,13 @@ fi
 
 
 # Checks for libraries.
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for EVP_MD_CTX_init in -lcrypto" >&5
-$as_echo_n "checking for EVP_MD_CTX_init in -lcrypto... " >&6; }
-if ${ac_cv_lib_crypto_EVP_MD_CTX_init+:} false; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for nettle_sha256_init in -lnettle" >&5
+$as_echo_n "checking for nettle_sha256_init in -lnettle... " >&6; }
+if ${ac_cv_lib_nettle_nettle_sha256_init+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lcrypto  $LIBS"
+LIBS="-lnettle  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -12284,35 +12284,35 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char EVP_MD_CTX_init ();
+char nettle_sha256_init ();
 int
 main ()
 {
-return EVP_MD_CTX_init ();
+return nettle_sha256_init ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_crypto_EVP_MD_CTX_init=yes
+  ac_cv_lib_nettle_nettle_sha256_init=yes
 else
-  ac_cv_lib_crypto_EVP_MD_CTX_init=no
+  ac_cv_lib_nettle_nettle_sha256_init=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_crypto_EVP_MD_CTX_init" >&5
-$as_echo "$ac_cv_lib_crypto_EVP_MD_CTX_init" >&6; }
-if test "x$ac_cv_lib_crypto_EVP_MD_CTX_init" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_nettle_nettle_sha256_init" >&5
+$as_echo "$ac_cv_lib_nettle_nettle_sha256_init" >&6; }
+if test "x$ac_cv_lib_nettle_nettle_sha256_init" = xyes; then :
   cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBCRYPTO 1
+#define HAVE_LIBNETTLE 1
 _ACEOF
 
-  LIBS="-lcrypto $LIBS"
+  LIBS="-lnettle $LIBS"
 
 else
-  $as_echo  "Sorry, you need OpenSSL."; exit 1
+  $as_echo  "Sorry, you need nettle."; exit 1
 fi
 
 

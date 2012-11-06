@@ -1,5 +1,12 @@
 libkpass releases:
 
+Version 5 - ???
+** Packagers and users -- Changed ABI/SONAME/dependencies
+
+Switched from OpenSSL to nettle due to licensing issues. Some functions changed
+to void since they no longer can produce errors.
+Changed libtool version to change SONAME due to interface changes.
+
 Version 4 - 20121013
 Add support for keyfiles and pull in a bunch of autotools changes.
 

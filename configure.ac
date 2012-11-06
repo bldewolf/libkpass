@@ -21,7 +21,7 @@ AC_PROG_LIBTOOL
 AC_PROG_CC
 
 # Checks for libraries.
-AC_CHECK_LIB([crypto], [EVP_MD_CTX_init], [], [AS_ECHO "Sorry, you need OpenSSL."; exit 1])
+AC_CHECK_LIB([nettle], [nettle_sha256_init], [], [AS_ECHO "Sorry, you need nettle."; exit 1])
 
 # Maybe once rlkpass is finished
 #AC_CHECK_LIB([readline], [rl_get_screen_size], [

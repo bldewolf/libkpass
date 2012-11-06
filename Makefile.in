@@ -112,6 +112,9 @@ LTLIBRARIES = $(lib_LTLIBRARIES)
 libkpass_la_LIBADD =
 am_libkpass_la_OBJECTS = kpass.lo
 libkpass_la_OBJECTS = $(am_libkpass_la_OBJECTS)
+libkpass_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(libkpass_la_LDFLAGS) $(LDFLAGS) -o $@
 am_test1_OBJECTS = test1.$(OBJEXT)
 test1_OBJECTS = $(am_test1_OBJECTS)
 test1_DEPENDENCIES = libkpass.la
@@ -284,6 +287,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 lib_LTLIBRARIES = libkpass.la
 libkpass_la_SOURCES = src/kpass.c
+libkpass_la_LDFLAGS = -version-info 1:0:0
 include_HEADERS = src/kpass.h
 test1_SOURCES = src/test1.c
 test1_LDADD = libkpass.la
@@ -389,7 +393,7 @@ clean-libLTLIBRARIES:
 	  rm -f $${locs}; \
 	}
 libkpass.la: $(libkpass_la_OBJECTS) $(libkpass_la_DEPENDENCIES) $(EXTRA_libkpass_la_DEPENDENCIES) 
-	$(LINK) -rpath $(libdir) $(libkpass_la_OBJECTS) $(libkpass_la_LIBADD) $(LIBS)
+	$(libkpass_la_LINK) -rpath $(libdir) $(libkpass_la_OBJECTS) $(libkpass_la_LIBADD) $(LIBS)
 
 clean-checkPROGRAMS:
 	@list='$(check_PROGRAMS)'; test -n "$$list" || exit 0; \

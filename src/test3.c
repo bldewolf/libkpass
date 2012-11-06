@@ -96,10 +96,9 @@ int main(int argc, char* argv[]) {
 	printf("init: %s\n", kpass_error_str[retval]);
 	if(retval) exit(retval);
 
-	retval = kpass_hash_pw_keyfile(db, pass = getpass("password:"), keyfile,
+	kpass_hash_pw_keyfile(db, pass = getpass("password:"), keyfile,
 				keyfile_length, pw_hash);
 	printf("hash: %s\n", kpass_error_str[retval]);
-	if(retval) exit(retval);
 	
 	retval = kpass_decrypt_db(db, pw_hash);
 	printf("decrypt: %s\n", kpass_error_str[retval]);
