@@ -12316,14 +12316,6 @@ else
 fi
 
 
-# Maybe once rlkpass is finished
-#AC_CHECK_LIB([readline], [rl_get_screen_size], [
-#	echo "Wonderful."
-#	], [
-#	echo "Sorry, you need readline."
-#	exit 1
-#	])
-
 # Checks for header files.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ANSI C header files" >&5
 $as_echo_n "checking for ANSI C header files... " >&6; }

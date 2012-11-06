@@ -23,14 +23,6 @@ AC_PROG_CC
 # Checks for libraries.
 AC_CHECK_LIB([nettle], [nettle_sha256_init], [], [AS_ECHO "Sorry, you need nettle."; exit 1])
 
-# Maybe once rlkpass is finished
-#AC_CHECK_LIB([readline], [rl_get_screen_size], [
-#	echo "Wonderful."
-#	], [
-#	echo "Sorry, you need readline."
-#	exit 1
-#	])
-
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h termios.h unistd.h])
