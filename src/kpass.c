@@ -211,7 +211,7 @@ kpass_retval kpass_decrypt_db(kpass_db *db, const uint8_t *pw_hash) {
 	return retval;
 }
 
-void kpass_hash_pw(const kpass_db *db, const char *pw, uint8_t *pw_hash) {
+void kpass_hash_pw(const char *pw, uint8_t *pw_hash) {
 	struct sha256_ctx sha256_ctx;
 	
 	/* First, SHA256 the password.  This has been pulled out so it can be
@@ -222,12 +222,12 @@ void kpass_hash_pw(const kpass_db *db, const char *pw, uint8_t *pw_hash) {
 	sha256_digest(&sha256_ctx, SHA256_DIGEST_SIZE, pw_hash);
 }
 
-void kpass_hash_pw_keyfile(const kpass_db *db, const char *pw, const uint8_t *data, const int len, uint8_t *pw_hash) {
+void kpass_hash_pw_keyfile(const char *pw, const uint8_t *data, const int len, uint8_t *pw_hash) {
 	struct sha256_ctx sha256_ctx;
 	uint8_t keyfile_hash[32], justpw_hash[32];
 
 	/* Hash the password */
-	kpass_hash_pw(db, pw, justpw_hash);
+	kpass_hash_pw(pw, justpw_hash);
 
 	/* Hash the file contents */
 	sha256_init(&sha256_ctx);

@@ -8,6 +8,7 @@ to void since they no longer can produce errors.
 Changed libtool version to change SONAME due to interface changes.
 Changed error message format, now using a function that goes through gettext
 for localized text (translations welcome).
+Change kpass_hash_pw and kpass_hash_pw_keyfile to not require a DB argument.
 
 Version 4 - 20121013
 Add support for keyfiles and pull in a bunch of autotools changes.

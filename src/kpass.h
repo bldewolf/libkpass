@@ -180,7 +180,6 @@ kpass_retval	kpass_init_db(kpass_db *db, const uint8_t *data, const int len);
  * shared crypto functions */
 
 /* kpass_hash_pw - Generate hash (for crypting) from a string.
- * db: backwards compatible argument, can be NULL
  * pw: string to be hashed
  * pw_hash: 32-byte pre-allocated location for the hash to be returned in
  *
@@ -190,10 +189,9 @@ kpass_retval	kpass_init_db(kpass_db *db, const uint8_t *data, const int len);
  * to produce a database key with different parameters (seeds, key rounds, init
  * vectors).
  */
-void	kpass_hash_pw(const kpass_db *db, const char *pw, uint8_t *pw_hash);
+void	kpass_hash_pw(const char *pw, uint8_t *pw_hash);
 
 /* kpass_hash_pw_keyfile - Generate hash from a string and keyfile.
- * db: backwards compatible argument, can be NULL
  * pw: string to be hashed
  * data: Key file
  * len: length of data
@@ -205,7 +203,7 @@ void	kpass_hash_pw(const kpass_db *db, const char *pw, uint8_t *pw_hash);
  * to produce a database key with different parameters (seeds, key rounds, init
  * vectors).
  */
-void	kpass_hash_pw_keyfile(const kpass_db *db, const char *pw, const uint8_t *data, const int len, uint8_t *pw_hash);
+void	kpass_hash_pw_keyfile(const char *pw, const uint8_t *data, const int len, uint8_t *pw_hash);
 
 /*
  * encrypted->decrypted functions */

@@ -86,7 +86,7 @@ int testfile(char *filename, char *pass) {
 		return retval;
 	}
 
-	kpass_hash_pw(db, pass, pw_hash);
+	kpass_hash_pw(pass, pw_hash);
 	printf("hash: %s\n", kpass_strerror(retval));
 
 	retval = kpass_decrypt_db(db, pw_hash);
