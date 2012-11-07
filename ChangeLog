@@ -1,6 +1,6 @@
 libkpass releases:
 
-Version 5 - ???
+Version 5 - 20121107
 ** Packagers and users -- Changed ABI/SONAME/dependencies
 
 Switched from OpenSSL to nettle due to licensing issues. Some functions changed
