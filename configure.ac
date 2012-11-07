@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT(libkpass, 4, [libkpass@bldewolf.com])
+AC_INIT(libkpass, 5, [libkpass@bldewolf.com])
 AC_CONFIG_SRCDIR([src/kpass.c])
 AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_AUX_DIR([build-aux])
