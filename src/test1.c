@@ -79,24 +79,18 @@ int testfile(char *filename, char *pass) {
 		return -1;
 	}
 	retval = kpass_init_db(db, file, length);
-	printf("init: %s\n", kpass_error_str[retval]);
+	printf("init: %s\n", kpass_strerror(retval));
 	if(retval) {
 		munmap(file, length);
 		free(db);
 		return retval;
 	}
 
-	retval = kpass_hash_pw(db, pass, pw_hash);
-	printf("hash: %s\n", kpass_error_str[retval]);
-	if(retval) {
-		munmap(file, length);
-		kpass_free_db(db);
-		free(db);
-		return retval;
-	}
-	
+	kpass_hash_pw(pass, pw_hash);
+	printf("hash: %s\n", kpass_strerror(retval));
+
 	retval = kpass_decrypt_db(db, pw_hash);
-	printf("decrypt: %s\n", kpass_error_str[retval]);
+	printf("decrypt: %s\n", kpass_strerror(retval));
 	if(retval) {
 		munmap(file, length);
 		kpass_free_db(db);
@@ -108,7 +102,7 @@ int testfile(char *filename, char *pass) {
 	outdb = malloc(outdb_len);
 
 	retval = kpass_encrypt_db(db, pw_hash, outdb);
-	printf("encrypt: %s\n", kpass_error_str[retval]);
+	printf("encrypt: %s\n", kpass_strerror(retval));
 	if(retval) {
 		munmap(file, length);
 		kpass_free_db(db);
@@ -138,7 +132,7 @@ int main(int argc, char* argv[]) {
 	for(i = 0; i < 16; i++) {
 		printf("On file %s:\n", totest[i]);
 		retval = testfile(totest[i], pass);
-		if(retval) return retval;
+		if(retval) return 1;
 	}
 	return 0;
 }

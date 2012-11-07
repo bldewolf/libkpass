@@ -42,24 +42,13 @@ typedef enum kpass_retval kpass_retval;
 enum kpass_retval {
 	kpass_success,
 	kpass_decrypt_data_fail,
-	kpass_decrypt_db_fail,
-	kpass_hash_pw_fail,
-	kpass_hash_pw_keyfile_fail,
-	kpass_prepare_key_fail,
 	kpass_load_decrypted_data_entry_fail,
 	kpass_load_decrypted_data_group_fail,
-	kpass_init_db_fail,
-	kpass_encrypt_db_fail,
-	kpass_encrypt_data_fail,
+	kpass_init_db_short,
+	kpass_init_db_signature,
 	kpass_pack_db_fail,
-	kpass_verification_fail,
 	kpass_unsupported_flag,
-	kpass_not_implemented,
 };
-#define kpass_retval_len 15
-
-extern char *kpass_error_str_en_US[];
-extern char **kpass_error_str;
 
 /*
 int kpass_header_len = 124;
@@ -163,6 +152,14 @@ enum kpass_entry_type {
  *
  */
 
+/* kpass_strerror - Returns string describing error number
+ * retval: return value to be translated
+ *
+ * This function uses gettext to translate errors to localized strings
+ * describing the error that occurred.
+ */
+char *kpass_strerror(kpass_retval retval);
+
 /*
  * empty->encrypted functions */
 
@@ -183,7 +180,6 @@ kpass_retval	kpass_init_db(kpass_db *db, const uint8_t *data, const int len);
  * shared crypto functions */
 
 /* kpass_hash_pw - Generate hash (for crypting) from a string.
- * db: backwards compatible argument, can be NULL
  * pw: string to be hashed
  * pw_hash: 32-byte pre-allocated location for the hash to be returned in
  *
@@ -193,10 +189,9 @@ kpass_retval	kpass_init_db(kpass_db *db, const uint8_t *data, const int len);
  * to produce a database key with different parameters (seeds, key rounds, init
  * vectors).
  */
-kpass_retval	kpass_hash_pw(const kpass_db *db, const char *pw, uint8_t *pw_hash);
+void	kpass_hash_pw(const char *pw, uint8_t *pw_hash);
 
 /* kpass_hash_pw_keyfile - Generate hash from a string and keyfile.
- * db: backwards compatible argument, can be NULL
  * pw: string to be hashed
  * data: Key file
  * len: length of data
@@ -208,7 +203,7 @@ kpass_retval	kpass_hash_pw(const kpass_db *db, const char *pw, uint8_t *pw_hash)
  * to produce a database key with different parameters (seeds, key rounds, init
  * vectors).
  */
-kpass_retval	kpass_hash_pw_keyfile(const kpass_db *db, const char *pw, const uint8_t *data, const int len, uint8_t *pw_hash);
+void	kpass_hash_pw_keyfile(const char *pw, const uint8_t *data, const int len, uint8_t *pw_hash);
 
 /*
  * encrypted->decrypted functions */
@@ -246,9 +241,6 @@ kpass_retval	kpass_encrypt_db(kpass_db *db, const uint8_t *pw_hash, uint8_t * bu
  * database.
  */
 int		kpass_db_encrypted_len(const kpass_db *db);
-
-/* UNIMPLEMENTED */
-kpass_retval	kpass_insert_group(kpass_db *db, kpass_group *group);
 
 /*
  * packed time functions */

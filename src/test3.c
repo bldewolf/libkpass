@@ -93,23 +93,22 @@ int main(int argc, char* argv[]) {
 
 // do the kpass stuff
 	retval = kpass_init_db(db, file, length);
-	printf("init: %s\n", kpass_error_str[retval]);
+	printf("init: %s\n", kpass_strerror(retval));
 	if(retval) exit(retval);
 
-	retval = kpass_hash_pw_keyfile(db, pass = getpass("password:"), keyfile,
+	kpass_hash_pw_keyfile(pass = getpass("password:"), keyfile,
 				keyfile_length, pw_hash);
-	printf("hash: %s\n", kpass_error_str[retval]);
-	if(retval) exit(retval);
+	printf("hash: %s\n", kpass_strerror(retval));
 	
 	retval = kpass_decrypt_db(db, pw_hash);
-	printf("decrypt: %s\n", kpass_error_str[retval]);
+	printf("decrypt: %s\n", kpass_strerror(retval));
 	if(retval) exit(retval);
 
 	outdb_len = kpass_db_encrypted_len(db);
 	outdb = malloc(outdb_len);
 
 	retval = kpass_encrypt_db(db, pw_hash, outdb);
-	printf("encrypt: %s\n", kpass_error_str[retval]);
+	printf("encrypt: %s\n", kpass_strerror(retval));
 	if(retval) exit(retval);
 
 	retval = memcmp(file, outdb, outdb_len);
