@@ -6,6 +6,8 @@ Version 5 - ???
 Switched from OpenSSL to nettle due to licensing issues. Some functions changed
 to void since they no longer can produce errors.
 Changed libtool version to change SONAME due to interface changes.
+Changed error message format, now using a function that goes through gettext
+for localized text (translations welcome).
 
 Version 4 - 20121013
 Add support for keyfiles and pull in a bunch of autotools changes.

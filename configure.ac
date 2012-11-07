@@ -2,13 +2,13 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT(libkpass, 4, libkpass@bldewolf.com)
+AC_INIT(libkpass, 4, [libkpass@bldewolf.com])
 AC_CONFIG_SRCDIR([src/kpass.c])
-AC_CONFIG_HEADER([src/config.h])
+AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_INIT_AUTOMAKE([-Wall -Werror])
+AM_INIT_AUTOMAKE([-Wall])
 
 AM_PROG_AR
 
@@ -38,8 +38,12 @@ AC_FUNC_MEMCMP
 AC_FUNC_MMAP
 AC_CHECK_FUNCS([memset munmap strdup getpass])
 
+# Check for gettext.
+AM_GNU_GETTEXT_VERSION([0.18.1])
+AM_GNU_GETTEXT([external])
+
 # Let's make gcc noisy
 CFLAGS="$CFLAGS -Wall"
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile po/Makefile.in])
 AC_OUTPUT

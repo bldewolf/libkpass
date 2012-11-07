@@ -16,13 +16,18 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
- #include <stdlib.h>
+#include "config.h"
+
+#include <stdlib.h>
 #include <string.h>
 #include <nettle/aes.h>
 #include <nettle/sha.h>
 #include <nettle/cbc.h>
 #include <byteswap.h>
 #include <time.h>
+
+#include <libintl.h>
+#define _(String) dgettext (PACKAGE, String)
 
 #include "kpass.h"
 
@@ -34,27 +39,7 @@
  *
  */
 
-
 /* [DBHDR][GROUPINFO][GROUPINFO][GROUPINFO]...[ENTRYINFO][ENTRYINFO][ENTRYINFO]... */
-
-
-char *kpass_error_str_en_US[kpass_retval_len] = { 
-	"Operation successful",
-	"Data decryption failed",
-	"Database decryption failed",
-	"Loading data of an entry failed",
-	"Loading data of a group failed",
-	"Initializing database failed",
-	"Encrypting database failed",
-	"Encrypting data failed",
-	"Packing database failed",
-	"Verification failed",
-	"Unsupported flag",
-	"Not implemented"
-};
-
-char **kpass_error_str = kpass_error_str_en_US;
-
 
 /* Bytes for signature that are constant */
 uint8_t kpass_signature[] = { 0x03, 0xD9, 0xA2, 0x9A, 0x65, 0xFB, 0x4B, 0xB5 };
@@ -150,11 +135,40 @@ static uint16_t	kpass_htols(uint16_t x);
  *
  */
 
+char *kpass_strerror(kpass_retval retval) {
+#if ENABLE_NLS
+	static int init = 0;
+	if(!init) {
+		bindtextdomain (PACKAGE, LOCALEDIR);
+		init = 1;
+	}
+#endif
+	switch(retval) {
+		case kpass_success:
+			return _("The operation was successful.");
+		case kpass_decrypt_data_fail:
+			return _("Database corrupt or bad password given.");
+		case kpass_load_decrypted_data_entry_fail:
+			return _("Failed parsing corrupted entry.");
+		case kpass_load_decrypted_data_group_fail:
+			return _("Failed parsing corrupted group.");
+		case kpass_init_db_short:
+			return _("Given data too short to contain database.");
+		case kpass_init_db_signature:
+			return _("Signature doesn't match known value.");
+		case kpass_pack_db_fail:
+			return _("Packing database for encryption failed.");
+		case kpass_unsupported_flag:
+			return _("Database contains unsupported database flag.");
+		default:
+			return _("Unrecognized return value.");
+	}
+}
+
 static kpass_retval kpass_decrypt_data(kpass_db *db, const uint8_t *pw_hash, uint8_t * data, int * data_len) {
 	struct CBC_CTX(struct aes_ctx, AES_BLOCK_SIZE) aes_ctx;
 	struct sha256_ctx sha256_ctx;
 	uint8_t hash[32];
-	kpass_retval retval = kpass_success;
 
 	if(db->flags != (kpass_flag_RIJNDAEL | kpass_flag_SHA2))
 		return kpass_unsupported_flag;
@@ -174,15 +188,9 @@ static kpass_retval kpass_decrypt_data(kpass_db *db, const uint8_t *pw_hash, uin
 	sha256_digest(&sha256_ctx, SHA256_DIGEST_SIZE, hash);
 
 	if(memcmp(hash, db->contents_hash, 32))
-		goto kpass_decrypt_data_fail;
+		return kpass_decrypt_data_fail;
 
-	goto kpass_decrypt_data_success;
-
-kpass_decrypt_data_fail:
-	if(retval == kpass_success) retval = kpass_decrypt_data_fail;
-
-kpass_decrypt_data_success:
-	return retval;
+	return kpass_success;
 }
 
 kpass_retval kpass_decrypt_db(kpass_db *db, const uint8_t *pw_hash) {
@@ -194,19 +202,10 @@ kpass_retval kpass_decrypt_db(kpass_db *db, const uint8_t *pw_hash) {
 	memcpy(buf, db->encrypted_data, len);
 
 	retval = kpass_decrypt_data(db, pw_hash, buf, &len);
-	if(retval)
-		goto kpass_decrypt_db_fail;
+	/* skip second operation if first failed */
+	if(!retval)
+		retval = kpass_load_decrypted_data(db, buf, len);
 
-	retval = kpass_load_decrypted_data(db, buf, len);
-	if(retval)
-		goto kpass_decrypt_db_fail;
-
-	goto kpass_decrypt_db_success;
-
-kpass_decrypt_db_fail:
-	if(retval == kpass_success) retval = kpass_decrypt_db_fail;
-
-kpass_decrypt_db_success:
 	memset(buf, 0, db->encrypted_data_len);
 	free(buf);
 	return retval;
@@ -452,7 +451,7 @@ kpass_load_decrypted_data_success:
 kpass_retval kpass_init_db(kpass_db *db, const uint8_t *data, const int len) {
 	int x;
 
-	if(len <= kpass_header_len) return kpass_init_db_fail;
+	if(len <= kpass_header_len) return kpass_init_db_short;
 
 	/* init internal structures of kpass_db */
 	db->groups = NULL;
@@ -463,7 +462,7 @@ kpass_retval kpass_init_db(kpass_db *db, const uint8_t *data, const int len) {
 	/* Check signature */
 	for(x=0; x < kpass_signature_len; x++) {
 		if(kpass_signature[x] != data[x]) {
-			return kpass_init_db_fail;
+			return kpass_init_db_signature;
 		}
 	}
 	data += kpass_signature_len;
@@ -471,7 +470,7 @@ kpass_retval kpass_init_db(kpass_db *db, const uint8_t *data, const int len) {
 	/* read flags */
 	db->flags = kpass_htoll(*(uint32_t*)data);
 	if(db->flags >= kpass_flag_INVALID)
-		return kpass_init_db_fail;
+		return kpass_unsupported_flag;
 	data += 4;
 
 	/* grab version info */
@@ -592,21 +591,16 @@ kpass_retval kpass_encrypt_db(kpass_db *db, const uint8_t *pw_hash, uint8_t * bu
 
 	retval = kpass_pack_db(db, buf + kpass_header_len, len);
 	if(retval)
-		goto kpass_encrypt_db_fail;
+		goto kpass_encrypt_db_end;
 
 	retval = kpass_encrypt_data(db, pw_hash, buf + kpass_header_len, sum, len);
 	if(retval)
-		goto kpass_encrypt_db_fail;
+		goto kpass_encrypt_db_end;
 
 	/* write header afterward so it has updated hash */
 	kpass_write_header(db, buf);
 
-	goto kpass_encrypt_db_success;
-
-kpass_encrypt_db_fail:
-	if(retval == kpass_success) retval = kpass_encrypt_db_fail;
-
-kpass_encrypt_db_success:
+kpass_encrypt_db_end:
 	return retval;
 }
 
@@ -854,10 +848,6 @@ static int kpass_entry_packed_len(const kpass_entry *e) {
 	return kpass_entry_fixed_len + strlen(e->title) + strlen(e->url)
 	+ strlen(e->username) + strlen(e->password) + strlen(e->notes)
 	+ strlen(e->desc) + 6 + e->data_len + kpass_entry_num_types * 6;
-}
-
-kpass_retval kpass_verify_entry(const kpass_entry *entry) {
-	return kpass_verification_fail;
 }
 
 /* The time array is packed like this:
