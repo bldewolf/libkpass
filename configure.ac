@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT(libkpass, 5, [libkpass@bldewolf.com])
+AC_INIT(libkpass, 6, [libkpass@bldewolf.com])
 AC_CONFIG_SRCDIR([src/kpass.c])
 AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -25,7 +25,7 @@ AC_CHECK_LIB([nettle], [nettle_sha256_init], [], [AS_ECHO "Sorry, you need nettl
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h termios.h unistd.h])
+AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h termios.h unistd.h byteswap.h sys/endian.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_UINT16_T

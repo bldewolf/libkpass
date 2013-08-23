@@ -5,10 +5,13 @@ libkpass_la_SOURCES = src/kpass.c
 libkpass_la_LDFLAGS = -version-info 1:0:0
 include_HEADERS = src/kpass.h
 test1_SOURCES  = src/test1.c
+test1_LDFLAGS = $(LTLIBINTL)
 test1_LDADD = libkpass.la
 test2_SOURCES  = src/test2.c
+test2_LDFLAGS = $(LTLIBINTL)
 test2_LDADD = libkpass.la
 test3_SOURCES = src/test3.c
+test3_LDFLAGS = $(LTLIBINTL)
 test3_LDADD = libkpass.la
 
 ACLOCAL_AMFLAGS = -I m4

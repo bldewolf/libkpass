@@ -1,5 +1,9 @@
 libkpass releases:
 
+Version 6 - 20130823
+Fix some linking problems with the test programs.
+Improve FreeBSD compatibility.
+
 Version 5 - 20121107
 ** Packagers and users -- Changed ABI/SONAME/dependencies
 

@@ -23,8 +23,14 @@
 #include <nettle/aes.h>
 #include <nettle/sha.h>
 #include <nettle/cbc.h>
-#include <byteswap.h>
 #include <time.h>
+#ifdef HAVE_BYTESWAP_H
+#include <byteswap.h>
+#elif HAVE_SYS_ENDIAN_H
+#include <sys/endian.h>
+#else
+#error "No source found for bswap. Good luck!"
+#endif
 
 #include <libintl.h>
 #define _(String) dgettext (PACKAGE, String)
